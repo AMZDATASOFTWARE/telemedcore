@@ -27,6 +27,7 @@ import PricingPage from '@/pages/PricingPage';
 import OnboardingPosAssinatura from '@/pages/OnboardingPosAssinatura';
 import SuperAdminRoute from '@/pages/SuperAdminRoute';
 import SalaTelemed from '@/pages/SalaTelemed';
+import PortalPaciente from '@/pages/PortalPaciente';
 
 // Wrapper to pass telemedUser to SalaTelemed without the Home layout
 function SalaTelemedRouteWrapper() {
@@ -77,6 +78,7 @@ const AuthenticatedApp = () => {
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         {/* Full-screen routes (no sidebar) */}
         <Route path="/sala-telemed/:id" element={<SalaTelemedRouteWrapper />} />
+        <Route path="/portal-paciente" element={<PortalPaciente />} />
         <Route element={<Home />}>
           <Route path="/" element={<DashboardRoute />} />
           <Route path="/agenda" element={<AgendaRoute />} />

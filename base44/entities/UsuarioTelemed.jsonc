@@ -1,0 +1,66 @@
+{
+  "name": "UsuarioTelemed",
+  "type": "object",
+  "properties": {
+    "id_empresa": {
+      "type": "string",
+      "title": "ID Empresa",
+      "relatedEntity": "Empresa"
+    },
+    "nome": {
+      "type": "string",
+      "title": "Nome Completo"
+    },
+    "cpf": {
+      "type": "string",
+      "title": "CPF"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "title": "E-mail"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "SUPER_ADMIN",
+        "SUPERVISOR_EMPRESA",
+        "MEDICO_VINCULADO",
+        "MEDICO_AVULSO",
+        "PACIENTE"
+      ],
+      "title": "Perfil de Acesso"
+    },
+    "crm": {
+      "type": "string",
+      "title": "CRM"
+    },
+    "especialidade": {
+      "type": "string",
+      "title": "Especialidade"
+    },
+    "stripe_connect_account_id": {
+      "type": "string",
+      "title": "Stripe Connect Account ID"
+    },
+    "telefone": {
+      "type": "string",
+      "title": "Telefone"
+    },
+    "ativo": {
+      "type": "boolean",
+      "title": "Ativo",
+      "default": true
+    },
+    "user_id": {
+      "type": "string",
+      "title": "Auth User ID"
+    }
+  },
+  "required": [
+    "nome",
+    "cpf",
+    "email",
+    "role"
+  ]
+}

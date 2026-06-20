@@ -1,0 +1,47 @@
+{
+  "name": "EvolucaoClinica",
+  "type": "object",
+  "properties": {
+    "id_paciente": {
+      "type": "string",
+      "title": "Paciente",
+      "relatedEntity": "UsuarioTelemed"
+    },
+    "id_medico": {
+      "type": "string",
+      "title": "M\u00e9dico",
+      "relatedEntity": "UsuarioTelemed"
+    },
+    "id_agendamento": {
+      "type": "string",
+      "title": "Agendamento",
+      "relatedEntity": "Agendamento"
+    },
+    "conteudo_jsonb": {
+      "type": "string",
+      "title": "Conte\u00fado Anamnese (JSON)"
+    },
+    "texto_livre": {
+      "type": "string",
+      "title": "Evolu\u00e7\u00e3o - Texto Livre"
+    },
+    "data_registro": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Data do Registro"
+    },
+    "cid": {
+      "type": "string",
+      "title": "CID-10"
+    },
+    "conduta": {
+      "type": "string",
+      "title": "Conduta"
+    }
+  },
+  "required": [
+    "id_paciente",
+    "id_medico",
+    "id_agendamento"
+  ]
+}

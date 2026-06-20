@@ -1,0 +1,49 @@
+{
+  "name": "Documento",
+  "type": "object",
+  "properties": {
+    "id_evolucao": {
+      "type": "string",
+      "title": "Evolu\u00e7\u00e3o Cl\u00ednica",
+      "relatedEntity": "EvolucaoClinica"
+    },
+    "id_paciente": {
+      "type": "string",
+      "title": "Paciente",
+      "relatedEntity": "UsuarioTelemed"
+    },
+    "id_medico": {
+      "type": "string",
+      "title": "M\u00e9dico",
+      "relatedEntity": "UsuarioTelemed"
+    },
+    "tipo": {
+      "type": "string",
+      "enum": [
+        "Receita",
+        "Atestado",
+        "Pedido de Exame",
+        "Laudo",
+        "Encaminhamento"
+      ],
+      "title": "Tipo de Documento"
+    },
+    "caminho_pdf": {
+      "type": "string",
+      "title": "Arquivo PDF"
+    },
+    "assinatura_digital": {
+      "type": "string",
+      "title": "Assinatura Digital (Hash)"
+    },
+    "valido": {
+      "type": "boolean",
+      "title": "V\u00e1lido",
+      "default": true
+    }
+  },
+  "required": [
+    "id_evolucao",
+    "tipo"
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "name": "Agendamento",
+  "type": "object",
+  "properties": {
+    "id_medico": {
+      "type": "string",
+      "title": "M\u00e9dico",
+      "relatedEntity": "UsuarioTelemed"
+    },
+    "id_paciente": {
+      "type": "string",
+      "title": "Paciente",
+      "relatedEntity": "UsuarioTelemed"
+    },
+    "id_empresa": {
+      "type": "string",
+      "title": "Empresa",
+      "relatedEntity": "Empresa"
+    },
+    "data_hora_inicio": {
+      "type": "string",
+      "format": "date-time",
+      "title": "In\u00edcio"
+    },
+    "data_hora_fim": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Fim"
+    },
+    "estado": {
+      "type": "number",
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "title": "Estado",
+      "default": 0
+    },
+    "estado_label": {
+      "type": "string",
+      "enum": [
+        "Agendado",
+        "Confirmado",
+        "Aguardando",
+        "Em Atendimento",
+        "Finalizado",
+        "Cancelado"
+      ],
+      "title": "Estado (Label)"
+    },
+    "link_video_webrtc": {
+      "type": "string",
+      "title": "Link Videochamada"
+    },
+    "valor_consulta": {
+      "type": "number",
+      "title": "Valor da Consulta (R$)"
+    },
+    "status_pagamento_stripe": {
+      "type": "string",
+      "enum": [
+        "pendente",
+        "pago",
+        "reembolsado",
+        "falhou"
+      ],
+      "title": "Status Pagamento",
+      "default": "pendente"
+    },
+    "observacoes": {
+      "type": "string",
+      "title": "Observa\u00e7\u00f5es"
+    }
+  },
+  "required": [
+    "id_medico",
+    "id_paciente",
+    "data_hora_inicio",
+    "data_hora_fim"
+  ]
+}

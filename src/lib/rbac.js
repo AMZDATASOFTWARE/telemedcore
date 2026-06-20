@@ -134,5 +134,9 @@ export function getNavItems(role) {
     items.push({ label: 'Auditoria', path: '/auditoria', icon: 'Shield' });
   }
 
+  if (role === ROLES.SUPER_ADMIN) {
+    items.push({ label: 'Super Admin KPIs', path: '/super-admin', icon: 'Zap' });
+  }
+
   return items;
 }

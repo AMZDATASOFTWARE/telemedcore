@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { getNavItems, ROLE_LABELS } from '@/lib/rbac';
-import { LayoutDashboard, Calendar, FileText, Users, Building2, DollarSign, Shield, LogOut, Activity, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Calendar, FileText, Users, Building2, DollarSign, Shield, LogOut, Activity, Menu, X, Zap } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 
 const ICON_MAP = {
-  LayoutDashboard, Calendar, FileText, Users, Building2, DollarSign, Shield,
+  LayoutDashboard, Calendar, FileText, Users, Building2, DollarSign, Shield, Zap,
 };
 
 export default function Sidebar({ telemedUser, collapsed, onToggle }) {

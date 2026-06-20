@@ -20,6 +20,10 @@ import UsuariosRoute from '@/pages/UsuariosRoute';
 import EmpresasRoute from '@/pages/EmpresasRoute';
 import FinanceiroRoute from '@/pages/FinanceiroRoute';
 import AuditoriaRoute from '@/pages/AuditoriaRoute';
+import LandingPage from '@/pages/LandingPage';
+import PricingPage from '@/pages/PricingPage';
+import OnboardingPosAssinatura from '@/pages/OnboardingPosAssinatura';
+import SuperAdminRoute from '@/pages/SuperAdminRoute';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -43,6 +47,9 @@ const AuthenticatedApp = () => {
 
   return (
     <Routes>
+      <Route path="/landing" element={<LandingPage />} />
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/onboarding-assinatura" element={<OnboardingPosAssinatura />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -56,6 +63,7 @@ const AuthenticatedApp = () => {
           <Route path="/empresas" element={<EmpresasRoute />} />
           <Route path="/financeiro" element={<FinanceiroRoute />} />
           <Route path="/auditoria" element={<AuditoriaRoute />} />
+          <Route path="/super-admin" element={<SuperAdminRoute />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />

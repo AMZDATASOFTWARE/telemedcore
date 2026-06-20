@@ -11,7 +11,7 @@ const PLANS_MEDICO = [
     period: 'Mensal',
     price: 'R$ 197',
     priceDetail: '/mês',
-    stripe_price_id: 'price_medico_mensal',
+    stripe_price_id: 'price_1TkJhLL04LdxLhj9mN1pRhT3',
     features: [
       'Agenda ilimitada',
       'Videoconsulta integrada',
@@ -29,7 +29,7 @@ const PLANS_MEDICO = [
     period: 'Anual',
     price: 'R$ 147',
     priceDetail: '/mês · cobrado anualmente',
-    stripe_price_id: 'price_medico_anual',
+    stripe_price_id: 'price_1TkJlqL04LdxLhj9v4PnY9W0',
     savings: 'Economize R$ 600/ano',
     features: [
       'Tudo do plano Mensal',
@@ -50,7 +50,7 @@ const PLANS_EMPRESA = [
     period: 'Mensal',
     price: 'R$ 897',
     priceDetail: '/mês · até 10 médicos',
-    stripe_price_id: 'price_empresa_mensal',
+    stripe_price_id: 'price_1TkJsFL04LdxLhj9rPicgJf7',
     features: [
       'Até 10 médicos vinculados',
       'Dashboard de supervisão',
@@ -67,7 +67,7 @@ const PLANS_EMPRESA = [
     period: 'Anual',
     price: 'R$ 697',
     priceDetail: '/mês · médicos ilimitados',
-    stripe_price_id: 'price_empresa_anual',
+    stripe_price_id: 'price_1TkJtOL04LdxLhj9kHM82K83',
     savings: 'Economize R$ 2.400/ano',
     features: [
       'Médicos ilimitados',

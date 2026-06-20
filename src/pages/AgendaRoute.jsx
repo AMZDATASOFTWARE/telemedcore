@@ -1,8 +1,8 @@
 import React from 'react';
 import { useOutletContext } from 'react-router-dom';
-import Agenda from './Agenda';
+import AgendaCalendario from './AgendaCalendario';
 
 export default function AgendaRoute() {
   const { telemedUser } = useOutletContext();
-  return <Agenda telemedUser={telemedUser} />;
+  return <AgendaCalendario telemedUser={telemedUser} />;
 }

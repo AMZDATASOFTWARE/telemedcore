@@ -1,4 +1,6 @@
 import { Toaster } from "@/components/ui/toaster"
+import { useState, useEffect } from 'react';
+import { base44 } from '@/api/base44Client';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
@@ -24,6 +26,24 @@ import LandingPage from '@/pages/LandingPage';
 import PricingPage from '@/pages/PricingPage';
 import OnboardingPosAssinatura from '@/pages/OnboardingPosAssinatura';
 import SuperAdminRoute from '@/pages/SuperAdminRoute';
+import SalaTelemed from '@/pages/SalaTelemed';
+
+// Wrapper to pass telemedUser to SalaTelemed without the Home layout
+function SalaTelemedRouteWrapper() {
+  const [telemedUser, setTelemedUser] = useState(null);
+  useEffect(() => {
+    async function load() {
+      try {
+        const user = await base44.auth.me();
+        const results = await base44.entities.UsuarioTelemed.filter({ user_id: user.id });
+        if (results.length > 0) setTelemedUser(results[0]);
+      } catch (e) { console.error(e); }
+    }
+    load();
+  }, []);
+  if (!telemedUser) return <div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" /></div>;
+  return <SalaTelemed telemedUser={telemedUser} />;
+}
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -55,6 +75,8 @@ const AuthenticatedApp = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
+        {/* Full-screen routes (no sidebar) */}
+        <Route path="/sala-telemed/:id" element={<SalaTelemedRouteWrapper />} />
         <Route element={<Home />}>
           <Route path="/" element={<DashboardRoute />} />
           <Route path="/agenda" element={<AgendaRoute />} />

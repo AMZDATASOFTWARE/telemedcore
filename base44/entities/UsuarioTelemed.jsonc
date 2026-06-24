@@ -58,7 +58,7 @@
     },
     "valor_consulta_padrao": {
       "type": "number",
-      "title": "Valor Padrão da Consulta (R$)"
+      "title": "Valor Padr\u00e3o da Consulta (R$)"
     }
   },
   "required": [

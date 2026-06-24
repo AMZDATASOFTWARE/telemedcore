@@ -26,7 +26,7 @@ export default function AgendarConsulta({ medico, paciente, onBack }) {
   const [loading, setLoading] = useState(false);
   const [paying, setPaying] = useState(false);
 
-  const valorConsulta = medico.valor_consulta || 150;
+  const valorConsulta = medico.valor_consulta_padrao || 150;
 
   useEffect(() => {
     async function loadOcupados() {

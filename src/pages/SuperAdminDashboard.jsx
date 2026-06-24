@@ -235,4 +235,86 @@ export default function SuperAdminDashboard({ telemedUser }) {
                     </td>
                     <td className="p-4 text-muted-foreground text-xs capitalize">{emp.plano || '—'}</td>
                     <td className="p-4">
-                      <span className={`text
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${STATUS_COLORS[emp.stripe_subscription_status] || STATUS_COLORS.incomplete}`}>
+                        {emp.stripe_subscription_status || 'N/A'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {empresas.length === 0 && (
+                  <tr><td colSpan={3} className="p-8 text-center text-muted-foreground">Nenhuma empresa cadastrada</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Lado Direito: Status breakdown + Taxa Global */}
+        <div className="space-y-4">
+          
+          {/* AQUI ESTÁ O NOVO COMPONENTE INJETADO */}
+          <CardConfiguracaoTaxa />
+
+          {/* Distribuição de status */}
+          <div className="bg-card rounded-xl border border-border p-5">
+            <h2 className="font-heading font-semibold text-foreground mb-4">Distribuição de Status</h2>
+            <div className="space-y-3">
+              {[
+                { label: 'Ativas', count: ativas.length, color: 'bg-emerald-500' },
+                { label: 'Inadimplentes', count: inadimplentes.length, color: 'bg-amber-500' },
+                { label: 'Canceladas', count: canceladas.length, color: 'bg-red-500' },
+              ].map(({ label, count, color }) => (
+                <div key={label}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-muted-foreground">{label}</span>
+                    <span className="font-medium text-foreground">{count}</span>
+                  </div>
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${color} rounded-full transition-all`}
+                      style={{ width: empresas.length > 0 ? `${(count / empresas.length) * 100}%` : '0%' }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Inadimplentes alert */}
+          {inadimplentes.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+                <h3 className="font-semibold text-amber-900">Inadimplentes ({inadimplentes.length})</h3>
+              </div>
+              <div className="space-y-2">
+                {inadimplentes.map(emp => (
+                  <div key={emp.id} className="flex justify-between items-center text-sm">
+                    <span className="text-amber-800 font-medium truncate">{emp.razao_social}</span>
+                    <span className="text-amber-600 text-xs ml-2">{emp.stripe_subscription_status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Planos distribuição */}
+          <div className="bg-card rounded-xl border border-border p-5">
+            <h2 className="font-heading font-semibold text-foreground mb-4">Por Plano</h2>
+            <div className="space-y-2">
+              {['enterprise', 'profissional', 'basico'].map(plano => {
+                const cnt = empresas.filter(e => e.plano === plano).length;
+                return (
+                  <div key={plano} className="flex justify-between text-sm">
+                    <span className="text-muted-foreground capitalize">{plano}</span>
+                    <span className="font-medium text-foreground">{cnt}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

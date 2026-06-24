@@ -14,6 +14,7 @@ export default function Financeiro({ telemedUser }) {
   const [faturamento, setFaturamento] = useState(0);
   const [consultas, setConsultas] = useState(0);
   
+  // Estados para o Médico Avulso
   const [valorConsulta, setValorConsulta] = useState("");
   const [salvandoValor, setSalvandoValor] = useState(false);
   const [conectandoStripe, setConectandoStripe] = useState(false);
@@ -26,7 +27,7 @@ export default function Financeiro({ telemedUser }) {
 
   useEffect(() => {
     if (telemedUser) {
-      if (telemedUser.role === ROLES.MEDICO_AVULSO) {
+      if (isMedicoAvulso) {
         setValorConsulta(telemedUser.valor_consulta_padrao || "");
       }
       loadData();
@@ -38,6 +39,7 @@ export default function Financeiro({ telemedUser }) {
     try {
       let filter = {};
 
+      // Correção: telemedUser já é a entidade do banco, usamos o id direto
       if (telemedUser.role === ROLES.MEDICO_VINCULADO || telemedUser.role === ROLES.MEDICO_AVULSO) {
         filter.id_medico = telemedUser.id;
       } else if (telemedUser.role === ROLES.SUPERVISOR_EMPRESA) {
@@ -45,7 +47,7 @@ export default function Financeiro({ telemedUser }) {
       }
 
       const agendamentos = await base44.entities.Agendamento.filter(filter);
-      const confirmados = agendamentos.filter(a => a.estado === 1 || a.estado === 4); 
+      const confirmados = agendamentos.filter(a => a.estado === 1 || a.estado === 4); // Confirmado ou Finalizado
       
       setConsultas(confirmados.length);
       const total = confirmados.reduce((acc, curr) => acc + (Number(curr.valor_consulta) || 0), 0);
@@ -58,6 +60,7 @@ export default function Financeiro({ telemedUser }) {
     }
   }
 
+  // ---- FUNÇÕES DO STRIPE CONNECT (MÉDICO AVULSO) ----
   async function handleSalvarValor() {
     if (!telemedUser) return;
     setSalvandoValor(true);
@@ -81,24 +84,11 @@ export default function Financeiro({ telemedUser }) {
         email: telemedUser.email,
         nome: telemedUser.nome
       });
-      
-      // Se o backend retornou um erro estruturado, ele aparecerá na tela
-      if (res.error) {
-        alert("Erro retornado pelo servidor: " + JSON.stringify(res.error));
-        setConectandoStripe(false);
-        return;
-      }
-
-      // Se a conexão foi um sucesso, redireciona
       if (res.data?.url) {
         window.location.href = res.data.url;
-      } else {
-        alert("A URL do Stripe não foi retornada. Resposta: " + JSON.stringify(res.data));
-        setConectandoStripe(false);
       }
     } catch (error) {
-      // Se a conexão falhou totalmente (ex: erro 500)
-      alert("Falha de comunicação: " + error.message);
+      toast({ title: "Erro", description: "Erro ao conectar com Stripe.", variant: "destructive" });
       setConectandoStripe(false);
     }
   }
@@ -133,6 +123,7 @@ export default function Financeiro({ telemedUser }) {
         />
       </div>
 
+      {/* ÁREA EXCLUSIVA PARA MÉDICO AVULSO CONFIGURAR O STRIPE */}
       {isMedicoAvulso && (
         <Card className="border-primary/30 shadow-md mt-8">
           <CardHeader className="bg-primary/5 pb-4 border-b border-border">
@@ -147,6 +138,7 @@ export default function Financeiro({ telemedUser }) {
           
           <CardContent className="space-y-8 pt-6">
             
+            {/* Secção: Valor da Consulta */}
             <div className="space-y-3">
               <label className="text-sm font-bold text-foreground">Valor Padrão da Consulta (R$)</label>
               <div className="flex gap-4 items-center">
@@ -168,6 +160,7 @@ export default function Financeiro({ telemedUser }) {
               <p className="text-xs text-muted-foreground">Este valor será cobrado ao paciente no Portal de Agendamentos.</p>
             </div>
 
+            {/* Secção: Stripe Connect */}
             <div className="space-y-3 pt-6 border-t border-border">
               <label className="text-sm font-bold text-foreground">Conta para Recebimentos</label>
               

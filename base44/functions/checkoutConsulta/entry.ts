@@ -20,11 +20,16 @@ Deno.serve(async (req) => {
     const medicos = await base44.asServiceRole.entities.UsuarioTelemed.filter({ id: id_medico });
     const medico = medicos[0];
 
-    // Calcular split: 90% médico, 10% plataforma
-    const valorCentavos = Math.round(valor_consulta * 100);
-    const taxaPlataforma = Math.round(valorCentavos * 0.10);
+    // --- LÓGICA DINÂMICA DA TAXA ---
+    const configs = await base44.asServiceRole.entities.ConfiguracaoGlobal.filter({});
+    const taxaPercentual = (configs.length > 0 && configs[0].taxa_plataforma_percentual) 
+      ? Number(configs[0].taxa_plataforma_percentual) 
+      : 10; // 10% como padrão de segurança se a tabela estiver vazia
 
-    const sessionParams = {
+    const valorCentavos = Math.round(valor_consulta * 100);
+    const taxaPlataforma = Math.round(valorCentavos * (taxaPercentual / 100));
+
+    const sessionParams: any = {
       mode: 'payment',
       payment_method_types: ['card'],
       line_items: [{
@@ -61,7 +66,7 @@ Deno.serve(async (req) => {
     const session = await stripe.checkout.sessions.create(sessionParams);
 
     return Response.json({ url: session.url, session_id: session.id });
-  } catch (error) {
+  } catch (error: any) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 });

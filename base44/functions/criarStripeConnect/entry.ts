@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import Stripe from 'npm:stripe@14.21.0';
 
-export default async function (req: Request) {
+Deno.serve(async (req) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -65,10 +65,9 @@ export default async function (req: Request) {
     });
 
   } catch (error: any) {
-    // A MÁGICA ESTÁ AQUI: Enviamos status 200 para o erro não ser bloqueado pelo Frontend!
     return new Response(JSON.stringify({ error: `Ocorreu um erro no servidor: ${error.message}` }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
-}
+});

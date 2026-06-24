@@ -58,19 +58,30 @@ export default function AgendarConsulta({ medico, paciente, onBack }) {
       });
       const fim = inicio.clone().add(30, 'minutes');
 
+      // Chama a função do servidor enviando os dados
       const res = await base44.functions.invoke('checkoutConsulta', {
         id_medico: medico.id,
         id_paciente: paciente.id,
         data_hora_inicio: inicio.toISOString(),
         data_hora_fim: fim.toISOString(),
-        valor_consulta: valorConsulta,
+        valor_consulta: Number(valorConsulta), // Garante que vai como número
       });
 
+      console.log("Resposta do Checkout:", res);
+
+      // O nosso detetive em acção!
       if (res.data?.url) {
-        window.location.href = res.data.url;
+        window.location.href = res.data.url; // Redireciona com sucesso
+      } else if (res.data?.error) {
+        alert("O servidor respondeu com um erro:\n" + res.data.error);
+      } else if (res.error) {
+        alert("Erro na chamada da função do Stripe:\n" + JSON.stringify(res.error));
+      } else {
+        alert("Erro desconhecido. O Stripe não devolveu o link de pagamento.");
       }
     } catch (e) {
       console.error(e);
+      alert("Falha de comunicação ao gerar pagamento:\n" + e.message);
     } finally {
       setPaying(false);
     }
@@ -182,7 +193,7 @@ export default function AgendarConsulta({ medico, paciente, onBack }) {
             disabled={paying}
           >
             {paying ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Redirecionando...</>
+              <><Loader2 className="w-4 h-4 animate-spin" /> Gerando link seguro...</>
             ) : (
               <><CreditCard className="w-4 h-4" /> Pagar R$ {Number(valorConsulta).toFixed(2)}</>
             )}

@@ -1,31 +1,37 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import Stripe from 'npm:stripe@14.21.0';
 
-Deno.serve(async (req) => {
+export default async function (req: Request) {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' } });
+  }
+
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
 
-    const { id_medico, id_paciente, data_hora_inicio, data_hora_fim, valor_consulta } = await req.json();
+    const body = await req.json();
+    const { id_medico, id_paciente, data_hora_inicio, data_hora_fim, valor_consulta } = body;
 
     if (!id_medico || !id_paciente || !data_hora_inicio || !data_hora_fim || !valor_consulta) {
-      return Response.json({ error: 'Dados obrigatórios ausentes' }, { status: 400 });
+      return new Response(JSON.stringify({ error: 'Dados obrigatórios ausentes' }), { status: 400 });
     }
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY'), { apiVersion: '2024-06-20' });
-    const appUrl = Deno.env.get('APP_URL') || 'https://localhost:5173';
+    const appUrl = Deno.env.get('APP_URL') || 'http://localhost:5173';
 
     // Buscar médico para obter stripe_connect_account_id
     const medicos = await base44.asServiceRole.entities.UsuarioTelemed.filter({ id: id_medico });
     const medico = medicos[0];
 
-    // --- LÓGICA DINÂMICA DA TAXA ---
+    // Busca a taxa global definida pelo Super Admin no banco de dados
     const configs = await base44.asServiceRole.entities.ConfiguracaoGlobal.filter({});
     const taxaPercentual = (configs.length > 0 && configs[0].taxa_plataforma_percentual) 
       ? Number(configs[0].taxa_plataforma_percentual) 
-      : 10; // 10% como padrão de segurança se a tabela estiver vazia
+      : 10; 
 
+    // Calcular split dinâmico
     const valorCentavos = Math.round(valor_consulta * 100);
     const taxaPlataforma = Math.round(valorCentavos * (taxaPercentual / 100));
 
@@ -65,8 +71,10 @@ Deno.serve(async (req) => {
 
     const session = await stripe.checkout.sessions.create(sessionParams);
 
-    return Response.json({ url: session.url, session_id: session.id });
+    return new Response(JSON.stringify({ url: session.url, session_id: session.id }), {
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
   } catch (error: any) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
   }
-});
+}

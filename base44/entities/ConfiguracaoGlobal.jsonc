@@ -1,0 +1,14 @@
+{
+  "name": "ConfiguracaoGlobal",
+  "type": "object",
+  "properties": {
+    "taxa_plataforma_percentual": {
+      "type": "number",
+      "title": "Taxa da Plataforma (%)",
+      "default": 10
+    }
+  },
+  "required": [
+    "taxa_plataforma_percentual"
+  ]
+}

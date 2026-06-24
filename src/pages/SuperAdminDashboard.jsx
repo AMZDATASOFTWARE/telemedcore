@@ -3,9 +3,93 @@ import { base44 } from '@/api/base44Client';
 import { ROLES } from '@/lib/rbac';
 import PageHeader from '@/components/common/PageHeader';
 import StatCard from '@/components/common/StatCard';
-import { DollarSign, Users, Activity, TrendingUp, AlertTriangle, RefreshCw, Building2, CheckCircle } from 'lucide-react';
+import { DollarSign, Users, Activity, TrendingUp, AlertTriangle, RefreshCw, Building2, CheckCircle, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
 
+// ------------------------------------------------------------------
+// NOVO COMPONENTE: Cartão para configurar a Taxa Global da Plataforma
+// ------------------------------------------------------------------
+function CardConfiguracaoTaxa() {
+  const [taxa, setTaxa] = useState(10);
+  const [configId, setConfigId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    async function loadTaxa() {
+      try {
+        const configs = await base44.entities.ConfiguracaoGlobal.filter({});
+        if (configs.length > 0) {
+          setTaxa(configs[0].taxa_plataforma_percentual);
+          setConfigId(configs[0].id);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar configurações globais:", error);
+      }
+    }
+    loadTaxa();
+  }, []);
+
+  async function handleSalvar() {
+    setLoading(true);
+    try {
+      if (configId) {
+        await base44.entities.ConfiguracaoGlobal.update(configId, { 
+          taxa_plataforma_percentual: Number(taxa) 
+        });
+      } else {
+        const nova = await base44.entities.ConfiguracaoGlobal.create({ 
+          taxa_plataforma_percentual: Number(taxa) 
+        });
+        setConfigId(nova.id);
+      }
+      toast({ 
+        title: "Sucesso!", 
+        description: "A taxa da plataforma foi atualizada e já está valendo para novos agendamentos." 
+      });
+    } catch (e) {
+      toast({ 
+        title: "Erro", 
+        description: "Falha ao salvar a taxa.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="bg-card rounded-xl border border-primary/20 shadow-sm p-5 mb-4">
+      <h2 className="font-heading font-semibold text-foreground mb-1 flex items-center gap-2">
+        <Settings className="w-5 h-5 text-primary" />
+        Taxa Global da Plataforma (%)
+      </h2>
+      <p className="text-xs text-muted-foreground mb-4">
+        Defina a porcentagem de retenção da plataforma para os Médicos Avulsos.
+      </p>
+      <div className="flex gap-4 items-center">
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
+          <Input 
+            type="number" 
+            value={taxa} 
+            onChange={(e) => setTaxa(e.target.value)} 
+            className="w-32 pl-8 font-semibold text-lg"
+          />
+        </div>
+        <Button onClick={handleSalvar} disabled={loading} className="px-6">
+          {loading ? "Salvando..." : "Salvar Taxa"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------
+// PÁGINA PRINCIPAL
+// ------------------------------------------------------------------
 export default function SuperAdminDashboard({ telemedUser }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -151,82 +235,4 @@ export default function SuperAdminDashboard({ telemedUser }) {
                     </td>
                     <td className="p-4 text-muted-foreground text-xs capitalize">{emp.plano || '—'}</td>
                     <td className="p-4">
-                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${STATUS_COLORS[emp.stripe_subscription_status] || STATUS_COLORS.incomplete}`}>
-                        {emp.stripe_subscription_status || 'N/A'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {empresas.length === 0 && (
-                  <tr><td colSpan={3} className="p-8 text-center text-muted-foreground">Nenhuma empresa cadastrada</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Status breakdown + inadimplentes */}
-        <div className="space-y-4">
-          {/* Distribuição de status */}
-          <div className="bg-card rounded-xl border border-border p-5">
-            <h2 className="font-heading font-semibold text-foreground mb-4">Distribuição de Status</h2>
-            <div className="space-y-3">
-              {[
-                { label: 'Ativas', count: ativas.length, color: 'bg-emerald-500' },
-                { label: 'Inadimplentes', count: inadimplentes.length, color: 'bg-amber-500' },
-                { label: 'Canceladas', count: canceladas.length, color: 'bg-red-500' },
-              ].map(({ label, count, color }) => (
-                <div key={label}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-muted-foreground">{label}</span>
-                    <span className="font-medium text-foreground">{count}</span>
-                  </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${color} rounded-full transition-all`}
-                      style={{ width: empresas.length > 0 ? `${(count / empresas.length) * 100}%` : '0%' }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Inadimplentes alert */}
-          {inadimplentes.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle className="w-5 h-5 text-amber-600" />
-                <h3 className="font-semibold text-amber-900">Inadimplentes ({inadimplentes.length})</h3>
-              </div>
-              <div className="space-y-2">
-                {inadimplentes.map(emp => (
-                  <div key={emp.id} className="flex justify-between items-center text-sm">
-                    <span className="text-amber-800 font-medium truncate">{emp.razao_social}</span>
-                    <span className="text-amber-600 text-xs ml-2">{emp.stripe_subscription_status}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Planos distribuição */}
-          <div className="bg-card rounded-xl border border-border p-5">
-            <h2 className="font-heading font-semibold text-foreground mb-4">Por Plano</h2>
-            <div className="space-y-2">
-              {['enterprise', 'profissional', 'basico'].map(plano => {
-                const cnt = empresas.filter(e => e.plano === plano).length;
-                return (
-                  <div key={plano} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground capitalize">{plano}</span>
-                    <span className="font-medium text-foreground">{cnt}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+                      <span className={`text

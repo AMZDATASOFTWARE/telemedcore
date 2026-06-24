@@ -61,18 +61,33 @@ export default function Financeiro({ telemedUser }) {
   }
 
   // ---- FUNÇÕES DO STRIPE CONNECT (MÉDICO AVULSO) ----
-  async function handleSalvarValor() {
+ async function handleConectarStripe() {
     if (!telemedUser) return;
-    setSalvandoValor(true);
+    setConectandoStripe(true);
     try {
-      await base44.entities.UsuarioTelemed.update(telemedUser.id, {
-        valor_consulta_padrao: Number(valorConsulta)
+      const res = await base44.functions.invoke('criarStripeConnect', {
+        email: telemedUser.email,
+        nome: telemedUser.nome
       });
-      toast({ title: "Sucesso!", description: "Valor da consulta atualizado." });
+      
+      // Se o backend retornou um erro estruturado
+      if (res.error) {
+        alert("Erro retornado pelo servidor: " + JSON.stringify(res.error));
+        setConectandoStripe(false);
+        return;
+      }
+
+      // Se deu tudo certo
+      if (res.data?.url) {
+        window.location.href = res.data.url;
+      } else {
+        alert("A URL do Stripe não foi retornada. Resposta: " + JSON.stringify(res.data));
+        setConectandoStripe(false);
+      }
     } catch (error) {
-      toast({ title: "Erro", description: "Falha ao salvar valor.", variant: "destructive" });
-    } finally {
-      setSalvandoValor(false);
+      // Se a conexão falhou totalmente (ex: erro 500)
+      alert("Falha de comunicação: " + error.message);
+      setConectandoStripe(false);
     }
   }
 

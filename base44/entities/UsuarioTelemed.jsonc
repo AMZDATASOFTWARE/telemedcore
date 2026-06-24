@@ -55,6 +55,10 @@
     "user_id": {
       "type": "string",
       "title": "Auth User ID"
+    },
+    "valor_consulta_padrao": {
+      "type": "number",
+      "title": "Valor Padrão da Consulta (R$)"
     }
   },
   "required": [

@@ -18,7 +18,6 @@ export default function Financeiro({ telemedUser }) {
   const [valorConsulta, setValorConsulta] = useState("");
   const [salvandoValor, setSalvandoValor] = useState(false);
   const [conectandoStripe, setConectandoStripe] = useState(false);
-  const [medicoDb, setMedicoDb] = useState(null);
   
   const { toast } = useToast();
 
@@ -27,31 +26,24 @@ export default function Financeiro({ telemedUser }) {
   const isSuperAdmin = telemedUser?.role === ROLES.SUPER_ADMIN;
 
   useEffect(() => {
-    loadData();
+    if (telemedUser) {
+      if (isMedicoAvulso) {
+        setValorConsulta(telemedUser.valor_consulta_padrao || "");
+      }
+      loadData();
+    }
   }, [telemedUser]);
 
   async function loadData() {
     setLoading(true);
     try {
-      if (!telemedUser) return;
-
-      // Se for médico avulso, carrega os dados dele para saber o stripe_connect_account_id
-      if (isMedicoAvulso) {
-        const usuarios = await base44.entities.UsuarioTelemed.filter({ user_id: telemedUser.id });
-        if (usuarios.length > 0) {
-          setMedicoDb(usuarios[0]);
-          setValorConsulta(usuarios[0].valor_consulta_padrao || "");
-        }
-      }
-
-      // Lógica existente para carregar o faturamento das consultas
       let filter = {};
+
+      // Correção: telemedUser já é a entidade do banco, usamos o id direto
       if (telemedUser.role === ROLES.MEDICO_VINCULADO || telemedUser.role === ROLES.MEDICO_AVULSO) {
-        const u = await base44.entities.UsuarioTelemed.filter({ user_id: telemedUser.id });
-        if (u.length) filter.id_medico = u[0].id;
+        filter.id_medico = telemedUser.id;
       } else if (telemedUser.role === ROLES.SUPERVISOR_EMPRESA) {
-        const u = await base44.entities.UsuarioTelemed.filter({ user_id: telemedUser.id });
-        if (u.length) filter.id_empresa = u[0].id_empresa;
+        filter.id_empresa = telemedUser.id_empresa;
       }
 
       const agendamentos = await base44.entities.Agendamento.filter(filter);
@@ -70,10 +62,10 @@ export default function Financeiro({ telemedUser }) {
 
   // ---- FUNÇÕES DO STRIPE CONNECT (MÉDICO AVULSO) ----
   async function handleSalvarValor() {
-    if (!medicoDb) return;
+    if (!telemedUser) return;
     setSalvandoValor(true);
     try {
-      await base44.entities.UsuarioTelemed.update(medicoDb.id, {
+      await base44.entities.UsuarioTelemed.update(telemedUser.id, {
         valor_consulta_padrao: Number(valorConsulta)
       });
       toast({ title: "Sucesso!", description: "Valor da consulta atualizado." });
@@ -85,12 +77,12 @@ export default function Financeiro({ telemedUser }) {
   }
 
   async function handleConectarStripe() {
-    if (!medicoDb) return;
+    if (!telemedUser) return;
     setConectandoStripe(true);
     try {
       const res = await base44.functions.invoke('criarStripeConnect', {
-        email: medicoDb.email,
-        nome: medicoDb.nome
+        email: telemedUser.email,
+        nome: telemedUser.nome
       });
       if (res.data?.url) {
         window.location.href = res.data.url;
@@ -172,7 +164,7 @@ export default function Financeiro({ telemedUser }) {
             <div className="space-y-3 pt-6 border-t border-border">
               <label className="text-sm font-bold text-foreground">Conta para Recebimentos</label>
               
-              {medicoDb?.stripe_connect_account_id ? (
+              {telemedUser?.stripe_connect_account_id ? (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-4 text-green-800">
                   <div className="p-2 bg-green-100 rounded-full">
                     <CreditCard className="w-6 h-6 text-green-600" />

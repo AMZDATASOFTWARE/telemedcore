@@ -76,7 +76,7 @@ export default function Financeiro({ telemedUser }) {
     }
   }
 
-  async function handleConectarStripe() {
+ async function handleConectarStripe() {
     if (!telemedUser) return;
     setConectandoStripe(true);
     try {
@@ -84,12 +84,29 @@ export default function Financeiro({ telemedUser }) {
         email: telemedUser.email,
         nome: telemedUser.nome
       });
-      if (res.data?.url) {
+      
+      console.log("Resposta do Servidor:", res); // Deixa um rastro no console
+
+      // Se o nosso backend "detetive" capturou o erro e mandou de volta
+      if (res.data && res.data.error) {
+        alert("O servidor respondeu com o seguinte erro:\n" + res.data.error);
+      } 
+      // Se a função falhou completamente
+      else if (res.error) {
+        alert("Erro na chamada da função:\n" + JSON.stringify(res.error));
+      } 
+      // Se deu tudo certo
+      else if (res.data && res.data.url) {
         window.location.href = res.data.url;
+      } 
+      // Se a resposta veio vazia ou com formato estranho
+      else {
+        alert("Nenhuma URL retornada pelo Stripe. Resposta:\n" + JSON.stringify(res.data));
       }
     } catch (error) {
-      toast({ title: "Erro", description: "Erro ao conectar com Stripe.", variant: "destructive" });
-      setConectandoStripe(false);
+      alert("Falha total de comunicação:\n" + error.message);
+    } finally {
+      setConectandoStripe(false); // Para o botão parar de girar
     }
   }
 

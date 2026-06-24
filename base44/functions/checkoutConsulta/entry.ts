@@ -14,19 +14,30 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+    
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Você precisa estar logado para agendar.' }), { status: 200, headers: corsHeaders });
+    }
 
     const body = await req.json();
     const { id_medico, id_paciente, data_hora_inicio, data_hora_fim, valor_consulta } = body;
 
     if (!id_medico || !id_paciente || !data_hora_inicio || !data_hora_fim || !valor_consulta) {
-      return new Response(JSON.stringify({ error: 'Dados obrigatórios ausentes' }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: 'Dados obrigatórios ausentes no agendamento.' }), { status: 200, headers: corsHeaders });
     }
 
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY'), { apiVersion: '2024-06-20' });
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+    if (!stripeKey) {
+      return new Response(JSON.stringify({ error: 'Chave do Stripe não configurada no servidor.' }), { status: 200, headers: corsHeaders });
+    }
+
+    const stripe = new Stripe(stripeKey, { apiVersion: '2024-06-20' });
     const appUrl = Deno.env.get('APP_URL') || 'http://localhost:5173';
 
     const medicos = await base44.asServiceRole.entities.UsuarioTelemed.filter({ id: id_medico });
+    if (!medicos || medicos.length === 0) {
+      return new Response(JSON.stringify({ error: 'Médico não encontrado no banco de dados.' }), { status: 200, headers: corsHeaders });
+    }
     const medico = medicos[0];
 
     const configs = await base44.asServiceRole.entities.ConfiguracaoGlobal.filter({});
@@ -48,7 +59,7 @@ Deno.serve(async (req) => {
         },
         quantity: 1,
       }],
-      customer_email: user.email,
+      customer_email: user.email || 'paciente@telemed.com',
       metadata: {
         id_medico,
         id_paciente,
@@ -73,9 +84,14 @@ Deno.serve(async (req) => {
     const session = await stripe.checkout.sessions.create(sessionParams);
 
     return new Response(JSON.stringify({ url: session.url, session_id: session.id }), {
+      status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
+    // MÁGICA AQUI: Usamos status 200 para o navegador não bloquear a mensagem de erro do Stripe!
+    return new Response(JSON.stringify({ error: `O Stripe reclamou: ${error.message}` }), { 
+      status: 200, 
+      headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+    });
   }
 });

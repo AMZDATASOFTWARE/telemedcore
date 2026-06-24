@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+ import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { ROLES } from '@/lib/rbac';
 import PageHeader from '@/components/common/PageHeader';
@@ -27,7 +27,7 @@ export default function Financeiro({ telemedUser }) {
 
   useEffect(() => {
     if (telemedUser) {
-      if (isMedicoAvulso) {
+      if (telemedUser.role === ROLES.MEDICO_AVULSO) {
         setValorConsulta(telemedUser.valor_consulta_padrao || "");
       }
       loadData();
@@ -39,15 +39,14 @@ export default function Financeiro({ telemedUser }) {
     try {
       let filter = {};
 
-      // Correção: telemedUser já é a entidade do banco, usamos o id direto
-      if (telemedUser.role === ROLES.MEDICO_VINCULADO || telemedUser.role === ROLES.MEDICO_AVULSO) {
+      if (telemedUser?.role === ROLES.MEDICO_VINCULADO || telemedUser?.role === ROLES.MEDICO_AVULSO) {
         filter.id_medico = telemedUser.id;
-      } else if (telemedUser.role === ROLES.SUPERVISOR_EMPRESA) {
+      } else if (telemedUser?.role === ROLES.SUPERVISOR_EMPRESA) {
         filter.id_empresa = telemedUser.id_empresa;
       }
 
       const agendamentos = await base44.entities.Agendamento.filter(filter);
-      const confirmados = agendamentos.filter(a => a.estado === 1 || a.estado === 4); // Confirmado ou Finalizado
+      const confirmados = agendamentos.filter(a => a.estado === 1 || a.estado === 4); 
       
       setConsultas(confirmados.length);
       const total = confirmados.reduce((acc, curr) => acc + (Number(curr.valor_consulta) || 0), 0);
@@ -60,41 +59,23 @@ export default function Financeiro({ telemedUser }) {
     }
   }
 
-  // ---- FUNÇÕES DO STRIPE CONNECT (MÉDICO AVULSO) ----
-async function handleConectarStripe() {
+  // ---- FUNÇÃO: SALVAR PREÇO DA CONSULTA ----
+  async function handleSalvarValor() {
     if (!telemedUser) return;
-    setConectandoStripe(true);
+    setSalvandoValor(true);
     try {
-      const res = await base44.functions.invoke('criarStripeConnect', {
-        email: telemedUser.email,
-        nome: telemedUser.nome
+      await base44.entities.UsuarioTelemed.update(telemedUser.id, {
+        valor_consulta_padrao: Number(valorConsulta)
       });
-      
-      console.log("Resposta do Servidor:", res); // Deixa um rastro no console
-
-      // Se o nosso backend "detetive" capturou o erro e mandou de volta
-      if (res.data && res.data.error) {
-        alert("O servidor respondeu com o seguinte erro:\n" + res.data.error);
-      } 
-      // Se a função falhou completamente
-      else if (res.error) {
-        alert("Erro na chamada da função:\n" + JSON.stringify(res.error));
-      } 
-      // Se deu tudo certo
-      else if (res.data && res.data.url) {
-        window.location.href = res.data.url;
-      } 
-      // Se a resposta veio vazia ou com formato estranho
-      else {
-        alert("Nenhuma URL retornada pelo Stripe. Resposta:\n" + JSON.stringify(res.data));
-      }
+      toast({ title: "Sucesso!", description: "Valor da consulta atualizado." });
     } catch (error) {
-      alert("Falha total de comunicação:\n" + error.message);
+      toast({ title: "Erro", description: "Falha ao salvar valor.", variant: "destructive" });
     } finally {
-      setConectandoStripe(false); // Para o botão parar de girar
+      setSalvandoValor(false);
     }
   }
 
+  // ---- FUNÇÃO: CONECTAR CONTA BANCÁRIA STRIPE (DETETIVE INTEGRADO) ----
   async function handleConectarStripe() {
     if (!telemedUser) return;
     setConectandoStripe(true);
@@ -103,11 +84,28 @@ async function handleConectarStripe() {
         email: telemedUser.email,
         nome: telemedUser.nome
       });
-      if (res.data?.url) {
+      
+      console.log("Resposta do Servidor Connect:", res);
+
+      // Se o nosso backend capturou o erro amigavelmente (status 200) e nos avisou
+      if (res.data && res.data.error) {
+        alert("O servidor respondeu com o seguinte erro:\n" + res.data.error);
+      } 
+      // Se a chamada falhou estruturalmente na infraestrutura
+      else if (res.error) {
+        alert("Erro na chamada da função:\n" + JSON.stringify(res.error));
+      } 
+      // Se deu tudo certo e a URL existe, redireciona o médico para o onboarding do Stripe
+      else if (res.data && res.data.url) {
         window.location.href = res.data.url;
+      } 
+      // Fallback caso venha um formato inesperado
+      else {
+        alert("Nenhuma URL retornada pelo Stripe. Resposta:\n" + JSON.stringify(res.data));
       }
     } catch (error) {
-      toast({ title: "Erro", description: "Erro ao conectar com Stripe.", variant: "destructive" });
+      alert("Falha total de comunicação:\n" + error.message);
+    } finally {
       setConectandoStripe(false);
     }
   }
@@ -157,7 +155,6 @@ async function handleConectarStripe() {
           
           <CardContent className="space-y-8 pt-6">
             
-            {/* Secção: Valor da Consulta */}
             <div className="space-y-3">
               <label className="text-sm font-bold text-foreground">Valor Padrão da Consulta (R$)</label>
               <div className="flex gap-4 items-center">
@@ -179,7 +176,6 @@ async function handleConectarStripe() {
               <p className="text-xs text-muted-foreground">Este valor será cobrado ao paciente no Portal de Agendamentos.</p>
             </div>
 
-            {/* Secção: Stripe Connect */}
             <div className="space-y-3 pt-6 border-t border-border">
               <label className="text-sm font-bold text-foreground">Conta para Recebimentos</label>
               

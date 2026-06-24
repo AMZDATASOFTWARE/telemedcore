@@ -55,6 +55,63 @@ export default function MeuPerfil() {
     setConectandoStripe(true);
     try {
       // Chama a função do backend que gera o link de Onboarding do Stripe
+      const res = await base44.functions.invoke('criimport React, { useState, useEffect } from 'react';
+import { base44 } from '@/api/base44Client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { useToast } from '@/components/ui/use-toast';
+import { Loader2, CreditCard, DollarSign, User } from 'lucide-react';
+import AppLayout from '@/components/layout/AppLayout';
+
+export default function MeuPerfil() {
+  const [usuario, setUsuario] = useState(null);
+  const [valorConsulta, setValorConsulta] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [salvandoValor, setSalvandoValor] = useState(false);
+  const [conectandoStripe, setConectandoStripe] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    async function carregarPerfil() {
+      try {
+        const authUser = await base44.auth.me();
+        if (authUser) {
+          const usuarios = await base44.entities.UsuarioTelemed.filter({ user_id: authUser.id });
+          if (usuarios.length > 0) {
+            setUsuario(usuarios[0]);
+            setValorConsulta(usuarios[0].valor_consulta_padrao || "");
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao carregar perfil:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    carregarPerfil();
+  }, []);
+
+  async function handleSalvarValor() {
+    if (!usuario) return;
+    setSalvandoValor(true);
+    try {
+      await base44.entities.UsuarioTelemed.update(usuario.id, {
+        valor_consulta_padrao: Number(valorConsulta)
+      });
+      toast({ title: "Sucesso!", description: "O valor da sua consulta foi atualizado." });
+    } catch (error) {
+      toast({ title: "Erro", description: "Falha ao guardar o valor.", variant: "destructive" });
+    } finally {
+      setSalvandoValor(false);
+    }
+  }
+
+  async function handleConectarStripe() {
+    if (!usuario) return;
+    setConectandoStripe(true);
+    try {
+      // Chama a função do backend que gera o link de Onboarding do Stripe
       const res = await base44.functions.invoke('criarStripeConnect', {
         email: usuario.email,
         nome: usuario.nome

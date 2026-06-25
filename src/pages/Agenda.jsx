@@ -66,7 +66,7 @@ export default function Agenda({ telemedUser }) {
 
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary/30">
                 <th className="text-left p-4 font-medium text-muted-foreground">Data / Hora</th>
@@ -74,11 +74,13 @@ export default function Agenda({ telemedUser }) {
                 <th className="text-left p-4 font-medium text-muted-foreground">Valor</th>
                 <th className="text-left p-4 font-medium text-muted-foreground">Estado</th>
                 <th className="text-left p-4 font-medium text-muted-foreground">Pagamento</th>
+                {/* Coluna do Botão Adicionada */}
+                <th className="text-right p-4 font-medium text-muted-foreground">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.length === 0 && (
-                <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Nenhum agendamento encontrado</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhum agendamento encontrado</td></tr>
               )}
               {filtered.map((apt) => (
                 <tr key={apt.id} className="hover:bg-secondary/30 transition-colors">
@@ -92,6 +94,16 @@ export default function Agenda({ telemedUser }) {
                     <span className={`text-xs font-medium ${apt.status_pagamento_stripe === 'pago' ? 'text-emerald-600' : 'text-amber-600'}`}>
                       {apt.status_pagamento_stripe || 'pendente'}
                     </span>
+                  </td>
+                  {/* Botão de Entrar na Sala Adicionado */}
+                  <td className="p-4 text-right">
+                    {(apt.estado === 1 || apt.estado === 3) && (
+                      <a href={`/sala-telemed/${apt.id}`}>
+                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md">
+                          Entrar na Sala
+                        </Button>
+                      </a>
+                    )}
                   </td>
                 </tr>
               ))}

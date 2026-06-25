@@ -16,37 +16,41 @@ Deno.serve(async (req) => {
     
     // 1. Verificação de Autenticação
     if (!user) {
-      return new Response(JSON.stringify({ error: 'Utilizador não autenticado.' }), { status: 401, headers: corsHeaders });
+      // Usamos status 200 com a chave "error" para o Frontend mostrar o alerta bonitinho
+      return new Response(JSON.stringify({ error: 'Utilizador não autenticado.' }), { status: 200, headers: corsHeaders });
     }
 
     const body = await req.json();
     const { id_agendamento } = body;
 
     if (!id_agendamento) {
-      return new Response(JSON.stringify({ error: 'ID da consulta é obrigatório.' }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: 'ID da consulta é obrigatório.' }), { status: 200, headers: corsHeaders });
     }
 
-    // 2. Busca a consulta no banco de dados para garantir que existe
+    // 🔥 A CORREÇÃO: Descobre qual é o "ID de Perfil (UsuarioTelemed)" ligado a este login
+    const perfis = await base44.asServiceRole.entities.UsuarioTelemed.filter({ user_id: user.id });
+    if (!perfis || perfis.length === 0) {
+      return new Response(JSON.stringify({ error: 'Perfil médico ou de paciente não encontrado.' }), { status: 200, headers: corsHeaders });
+    }
+    const meuPerfilId = perfis[0].id; // Este é o ID que está gravado na consulta!
+
+    // Busca a consulta no banco de dados
     const consultas = await base44.asServiceRole.entities.Agendamento.filter({ id: id_agendamento });
     if (consultas.length === 0) {
-      return new Response(JSON.stringify({ error: 'Consulta não encontrada ou expirada.' }), { status: 404, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: 'Consulta não encontrada ou expirada.' }), { status: 200, headers: corsHeaders });
     }
     const consulta = consultas[0];
 
-    // 3. O CORAÇÃO DA SEGURANÇA (Anti-Invasão)
-    // Se quem clicou no botão não for nem o médico nem o paciente da consulta, rua!
-    if (consulta.id_medico !== user.id && consulta.id_paciente !== user.id) {
-      return new Response(JSON.stringify({ error: 'Acesso negado por violação de privacidade.' }), { status: 403, headers: corsHeaders });
+    // O CORAÇÃO DA SEGURANÇA: Agora compara banana com banana! (Perfil com Perfil)
+    if (consulta.id_medico !== meuPerfilId && consulta.id_paciente !== meuPerfilId) {
+      return new Response(JSON.stringify({ error: 'Acesso negado por violação de privacidade (LGPD). Esta não é a sua consulta.' }), { status: 200, headers: corsHeaders });
     }
 
-    // 4. Geração de URL Segura usando a API Nativa (Sem dependências externas = Zero Erros 503)
-    // Cria um código criptográfico de 32 caracteres impossível de adivinhar
+    // Geração de URL Segura 
     const secureToken = crypto.randomUUID().replace(/-/g, '');
-    
-    // Constrói a sala blindada
     const secureRoomUrl = `https://meet.jit.si/telemedcore-secure-${id_agendamento}-${secureToken}`;
 
-    // Devolve a chave de acesso ao Frontend
+    // Devolve a chave de acesso com sucesso
     return new Response(JSON.stringify({ token: secureToken, url: secureRoomUrl }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -54,7 +58,7 @@ Deno.serve(async (req) => {
 
   } catch (error: any) {
     return new Response(JSON.stringify({ error: `Erro no servidor: ${error.message}` }), { 
-      status: 500, 
+      status: 200, 
       headers: { 'Content-Type': 'application/json', ...corsHeaders } 
     });
   }

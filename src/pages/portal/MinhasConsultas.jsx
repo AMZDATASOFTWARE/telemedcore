@@ -119,22 +119,12 @@ export default function MinhasConsultas({ paciente }) {
                   </p>
                 )}
 
-                {/* Botão entrar na videochamada */}
-                {emBreve && consulta.link_video_webrtc && (
-                  <a href={`/sala-telemed/${consulta.id}`} className="block">
-                    <Button className="w-full h-12 bg-red-600 hover:bg-red-700 text-white gap-2 animate-pulse">
+             {/* Botão Único e Inteligente para Entrar na Sala */}
+                {(consulta.estado === 1 || consulta.estado === 3) && (
+                  <a href={`/sala-telemed/${consulta.id}`} className="block mt-2">
+                    <Button className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-900/20">
                       <Video className="w-5 h-5" />
-                      Entrar na Videochamada
-                    </Button>
-                  </a>
-                )}
-
-                {/* Botão entrar (em atendimento) */}
-                {consulta.estado === 3 && consulta.link_video_webrtc && !emBreve && (
-                  <a href={`/sala-telemed/${consulta.id}`} className="block">
-                    <Button className="w-full h-12 gap-2 bg-purple-600 hover:bg-purple-700 text-white">
-                      <Video className="w-5 h-5" />
-                      Entrar na Consulta
+                      {consulta.estado === 3 ? 'Retornar à Consulta' : 'Entrar na Videochamada'}
                     </Button>
                   </a>
                 )}

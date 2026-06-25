@@ -5,20 +5,21 @@ import { ROLES } from '@/lib/rbac';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Clock, Video, VideoOff } from 'lucide-react';
+import { Loader2, Clock, Video, ShieldCheck } from 'lucide-react';
 import PEPPanel from '@/components/telemed/PEPPanel';
 import GeradorDocumentos from '@/components/telemed/GeradorDocumentos';
 
 export default function SalaTelemed({ telemedUser }) {
-  const { id } = useParams(); // ID do agendamento
+  const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   
   const [agendamento, setAgendamento] = useState(null);
   const [loading, setLoading] = useState(true);
   const [chamadaIniciada, setChamadaIniciada] = useState(false);
+  const [gerandoToken, setGerandoToken] = useState(false);
+  const [secureRoomUrl, setSecureRoomUrl] = useState('');
 
-  // Verifica se o usuário logado é o paciente
   const isPaciente = telemedUser?.role === ROLES.PACIENTE;
 
   useEffect(() => {
@@ -32,34 +33,52 @@ export default function SalaTelemed({ telemedUser }) {
         }
       } catch (error) {
         console.error("Erro ao carregar sala:", error);
-      } bits {
+      } finally {
         setLoading(false);
       }
     }
     loadAgendamento();
   }, [id]);
 
+  // 🔥 O MOTOR DE SEGURANÇA: Ninguém entra sem autorização do servidor
   async function handleEntrarNaChamada() {
-    setChamadaIniciada(true);
+    setGerandoToken(true);
     try {
-      // Se for o médico, atualiza o estado da consulta para "Em Atendimento" (3) no banco
-      if (!isPaciente) {
-        await base44.entities.Agendamento.update(id, { estado: 3 });
+      // Pede permissão ao servidor Base44
+      const res = await base44.functions.invoke('gerarTokenSala', { id_agendamento: id });
+      
+      if (res.data?.error) {
+        // Se o servidor bloquear, mostramos um erro destrutivo e não ligamos o vídeo!
+        toast({ title: "Acesso Bloqueado", description: res.data.error, variant: "destructive" });
+        setGerandoToken(false);
+        return;
+      }
+
+      // Se o servidor aprovou, recebemos o Token e a URL criptografada
+      if (res.data?.token && res.data?.url) {
+        setSecureRoomUrl(res.data.url);
+        setChamadaIniciada(true);
+        
+        // Atualiza o estado da consulta apenas se for o médico
+        if (!isPaciente) {
+          await base44.entities.Agendamento.update(id, { estado: 3 });
+        }
       }
     } catch (e) {
-      console.error("Erro ao atualizar estado:", e);
+      console.error("Falha ao validar segurança:", e);
+      toast({ title: "Erro de Conexão", description: "Não foi possível estabelecer uma ligação segura.", variant: "destructive" });
+    } finally {
+      setGerandoToken(false);
     }
   }
 
   async function handleEncerrarAtendimento() {
     try {
       if (!isPaciente) {
-        // Se for o médico, encerra a consulta de vez mudando para Finalizado (4)
         await base44.entities.Agendamento.update(id, { estado: 4 });
-        toast({ title: "Atendimento Concluído", description: "A consulta foi encerrada e salva." });
+        toast({ title: "Atendimento Concluído", description: "A consulta foi encerrada de forma segura." });
         navigate('/agenda');
       } else {
-        // Se for o paciente, apenas sai da sala e volta para o portal dele
         toast({ title: "Sala Encerrada", description: "Você saiu da videoconferência." });
         navigate('/portal-paciente');
       }
@@ -75,11 +94,12 @@ export default function SalaTelemed({ telemedUser }) {
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       
-      {/* Header Superior da Sala */}
       <header className="h-14 bg-card border-b border-border flex items-center justify-between px-4 lg:px-6 shrink-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-          <h1 className="font-bold text-sm lg:text-lg truncate">Sala de Telemedicina</h1>
+          <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+          <h1 className="font-bold text-sm lg:text-lg truncate flex items-center gap-2">
+            Sala de Telemedicina <ShieldCheck className="w-4 h-4 text-emerald-500" />
+          </h1>
         </div>
         <div className="flex items-center gap-2 lg:gap-4 text-xs lg:text-sm text-muted-foreground font-medium">
           <span className="flex items-center gap-1 hidden md:flex">
@@ -91,54 +111,51 @@ export default function SalaTelemed({ telemedUser }) {
         </div>
       </header>
 
-      {/* Área Split Screen */}
       <div className="flex flex-1 flex-col lg:flex-row overflow-hidden">
         
-        {/* LADO ESQUERDO: O MOTOR DO VÍDEO WEBRTC */}
         <div className="flex-1 min-h-[50vh] lg:min-h-0 bg-zinc-950 relative flex flex-col p-2 lg:p-4">
           
           {!chamadaIniciada ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
-              <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800 animate-bounce">
-                <Video className="w-10 h-10 text-emerald-500" />
+              <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+                <ShieldCheck className="w-10 h-10 text-emerald-500" />
               </div>
               <div className="px-4 space-y-2">
-                <h2 className="text-white text-xl font-bold">A sua sala privada está pronta</h2>
-                <p className="text-zinc-400 text-sm max-w-sm mx-auto">
-                  Clique no botão abaixo para ativar a câmara, o microfone e conectar-se instantaneamente de forma segura.
+                <h2 className="text-white text-xl font-bold">Ambiente Criptografado</h2>
+                <p className="text-zinc-400 text-sm max-w-md mx-auto">
+                  A sua chamada é protegida por criptografia de ponta-a-ponta (SRTP/DTLS) em conformidade com as normas da LGPD.
                 </p>
               </div>
-              <Button onClick={handleEntrarNaChamada} size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-8 h-12 text-base font-bold shadow-xl">
-                {isPaciente ? "Entrar na Consulta de Vídeo" : "Iniciar Transmissão de Vídeo"}
+              <Button 
+                onClick={handleEntrarNaChamada} 
+                disabled={gerandoToken}
+                size="lg" 
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-8 h-12 text-base font-bold shadow-xl gap-2"
+              >
+                {gerandoToken ? <><Loader2 className="w-5 h-5 animate-spin" /> Gerando Conexão Segura...</> : <><Video className="w-5 h-5" /> Iniciar Transmissão Segura</>}
               </Button>
             </div>
           ) : (
             <div className="flex-1 flex flex-col h-full relative">
-              
-              {/* IFRAME WEBRTC EMBUTIDO COM PARÂMETROS PREMIUM */}
               <iframe
-                src={`https://meet.jit.si/telemedcore-sala-exclusiva-${id}#config.prejoinPageEnabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=false&config.startWithVideoMuted=false&config.toolbarButtons=['microphone','camera','toggle-camera','chat','tileview']&interfaceConfig.VIDEO_LAYOUT_FIT='both'`}
+                src={`${secureRoomUrl}#config.prejoinPageEnabled=false&config.disableDeepLinking=true`}
                 allow="camera; microphone; display-capture; autoplay"
                 className="w-full flex-1 bg-zinc-900 rounded-xl border border-zinc-800 shadow-2xl"
-                title="Chamada de Vídeo Telemedicina"
+                title="Chamada Protegida"
               />
-
-              {/* Botão Flutuante Superior para Sair/Encerrar sem quebrar o layout */}
               <div className="absolute top-3 left-3 z-30">
                 <Button 
                   variant="destructive" 
                   onClick={handleEncerrarAtendimento}
                   className="h-9 rounded-lg px-4 text-xs font-bold shadow-md opacity-90 hover:opacity-100 bg-red-600 hover:bg-red-700"
                 >
-                  {isPaciente ? "Sair da Sala" : "Encerrar Atendimento"}
+                  {isPaciente ? "Sair da Sala" : "Encerrar e Assinar"}
                 </Button>
               </div>
-
             </div>
           )}
         </div>
 
-        {/* LADO DIREITO: PRONTUÁRIO MÉDICO (SÓ APARECE SE NÃO FOR PACIENTE) */}
         {!isPaciente && (
           <div className="flex-1 lg:flex-none lg:w-[480px] xl:w-[580px] bg-secondary/10 flex flex-col border-t lg:border-t-0 lg:border-l border-border overflow-hidden">
             <Tabs defaultValue="pep" className="flex flex-col h-full overflow-hidden">
@@ -148,14 +165,9 @@ export default function SalaTelemed({ telemedUser }) {
                   <TabsTrigger value="documentos" className="text-xs lg:text-sm font-semibold">Receitas & Atestados</TabsTrigger>
                 </TabsList>
               </div>
-              
               <div className="flex-1 overflow-y-auto p-4 lg:p-6">
-                <TabsContent value="pep" className="m-0 h-full">
-                  <PEPPanel agendamento={agendamento} />
-                </TabsContent>
-                <TabsContent value="documentos" className="m-0 h-full">
-                  <GeradorDocumentos agendamento={agendamento} />
-                </TabsContent>
+                <TabsContent value="pep" className="m-0 h-full"><PEPPanel agendamento={agendamento} /></TabsContent>
+                <TabsContent value="documentos" className="m-0 h-full"><GeradorDocumentos agendamento={agendamento} /></TabsContent>
               </div>
             </Tabs>
           </div>

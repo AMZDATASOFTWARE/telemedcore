@@ -9,7 +9,7 @@ import PEPPanel from '@/components/telemed/PEPPanel';
 import GeradorDocumentos from '@/components/telemed/GeradorDocumentos';
 
 export default function SalaTelemed() {
-  const { id } = useParams(); // ID do agendamento
+  const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -40,21 +40,22 @@ export default function SalaTelemed() {
     }
     loadAgendamento();
 
-    // Limpa a câmara ao sair da página
     return () => stopMediaTracks();
   }, [id]);
 
-  // Função nativa WebRTC para capturar Câmara e Microfone
+  // CORREÇÃO: Injeta o vídeo só quando a tag <video> já existir na tela
+  useEffect(() => {
+    if (chamadaIniciada && stream && localVideoRef.current) {
+      localVideoRef.current.srcObject = stream;
+    }
+  }, [chamadaIniciada, stream]);
+
   async function startMedia() {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       setStream(mediaStream);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = mediaStream;
-      }
-      setChamadaIniciada(true);
+      setChamadaIniciada(true); // O React vai renderizar a tag <video> agora!
       
-      // Atualiza o estado da consulta para "Em Atendimento" (3)
       await base44.entities.Agendamento.update(id, { estado: 3 });
       
     } catch (error) {
@@ -95,7 +96,6 @@ export default function SalaTelemed() {
 
   async function handleEncerrar() {
     stopMediaTracks();
-    // Atualiza para Finalizado (4)
     try {
       await base44.entities.Agendamento.update(id, { estado: 4 });
       toast({ title: "Consulta Finalizada", description: "O atendimento foi encerrado com sucesso." });
@@ -111,57 +111,58 @@ export default function SalaTelemed() {
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       
-      {/* Header Minimalista da Sala */}
-      <header className="h-14 bg-card border-b border-border flex items-center justify-between px-6 shrink-0 z-10">
+      <header className="h-14 bg-card border-b border-border flex items-center justify-between px-4 lg:px-6 shrink-0 z-10">
         <div className="flex items-center gap-3">
           <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-          <h1 className="font-bold text-lg">Sala de Telemedicina</h1>
+          <h1 className="font-bold text-base lg:text-lg truncate">Sala de Telemedicina</h1>
         </div>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground font-medium">
-          <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {new Date(agendamento.data_hora_inicio).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-          <span className="bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">
+        <div className="flex items-center gap-2 lg:gap-4 text-xs lg:text-sm text-muted-foreground font-medium">
+          <span className="flex items-center gap-1 hidden md:flex"><Clock className="w-4 h-4" /> {new Date(agendamento.data_hora_inicio).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+          <span className="bg-primary/10 text-primary px-2 lg:px-3 py-1 rounded-full border border-primary/20">
             ID: {agendamento.id.split('-')[0].toUpperCase()}
           </span>
         </div>
       </header>
 
-      {/* Container Principal: Split Screen */}
-      <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
+      {/* Container Principal: Responsivo (Coluna no Mobile, Lado a Lado no Desktop) */}
+      <div className="flex flex-1 flex-col lg:flex-row overflow-hidden">
         
-        {/* LADO ESQUERDO: VÍDEO WEBRTC */}
-        <div className="flex-1 bg-zinc-950 relative flex flex-col items-center justify-center p-4">
+        {/* LADO ESQUERDO/CIMA: VÍDEO WEBRTC */}
+        {/* Adicionado min-h-[50vh] no mobile para não ser esmagado pelo Prontuário */}
+        <div className="flex-1 min-h-[50vh] lg:min-h-0 bg-zinc-950 relative flex flex-col items-center justify-center p-2 lg:p-4 shrink-0">
           
           {!chamadaIniciada ? (
             <div className="text-center space-y-6">
-              <div className="w-24 h-24 bg-zinc-800 rounded-full flex items-center justify-center mx-auto">
+              <div className="w-20 h-20 lg:w-24 lg:h-24 bg-zinc-800 rounded-full flex items-center justify-center mx-auto">
                 <VideoIcon className="w-10 h-10 text-zinc-400" />
               </div>
-              <div>
-                <h2 className="text-white text-xl font-bold">Pronto para iniciar?</h2>
-                <p className="text-zinc-400 text-sm mt-2 max-w-sm mx-auto">Ao entrar na sala, o paciente será notificado e a câmara será ligada.</p>
+              <div className="px-4">
+                <h2 className="text-white text-lg lg:text-xl font-bold">Pronto para iniciar?</h2>
+                <p className="text-zinc-400 text-xs lg:text-sm mt-2 max-w-sm mx-auto">A câmara e o microfone serão ativados após clicar no botão abaixo.</p>
               </div>
-              <Button onClick={startMedia} size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-8 h-12 text-lg font-bold shadow-lg shadow-emerald-900/20">
+              <Button onClick={startMedia} size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-6 lg:px-8 h-12 text-base lg:text-lg font-bold shadow-lg shadow-emerald-900/20">
                 Iniciar Atendimento
               </Button>
             </div>
           ) : (
             <>
-              {/* Vídeo do Paciente (Simulado para Layout) */}
-              <div className="w-full h-full relative rounded-2xl overflow-hidden bg-zinc-900 flex items-center justify-center border border-zinc-800">
-                <div className="text-center">
-                  <UserRound className="w-20 h-20 text-zinc-700 mx-auto mb-4" />
-                  <p className="text-zinc-500 font-medium">A aguardar conexão do paciente...</p>
+              {/* Espaço Principal: Paciente */}
+              <div className="w-full h-full relative rounded-xl lg:rounded-2xl overflow-hidden bg-zinc-900 flex items-center justify-center border border-zinc-800">
+                <div className="text-center p-4">
+                  <UserRound className="w-16 h-16 lg:w-20 lg:h-20 text-zinc-700 mx-auto mb-4" />
+                  <p className="text-zinc-500 font-medium text-sm lg:text-base">A aguardar conexão do paciente...</p>
                 </div>
                 
                 {/* O seu Vídeo Local (Picture in Picture) */}
-                <div className="absolute bottom-6 right-6 w-48 aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-zinc-700 z-10">
+                {/* No mobile: Topo Direito (top-4 right-4) pequeno | No Desktop: Fundo Direito grande */}
+                <div className="absolute top-4 right-4 lg:bottom-6 lg:right-6 lg:top-auto w-24 md:w-32 lg:w-48 aspect-video bg-black rounded-lg lg:rounded-xl overflow-hidden shadow-2xl border border-zinc-700 z-10">
                   <video 
                     ref={localVideoRef} 
                     autoPlay 
                     playsInline 
                     muted 
                     className="w-full h-full object-cover mirror"
-                    style={{ transform: 'scaleX(-1)' }} // Efeito espelho para parecer natural
+                    style={{ transform: 'scaleX(-1)' }} 
                   />
                   {!camOn && (
                     <div className="absolute inset-0 bg-zinc-900 flex items-center justify-center">
@@ -172,50 +173,52 @@ export default function SalaTelemed() {
               </div>
 
               {/* Controles da Chamada */}
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-zinc-900/80 backdrop-blur-md px-6 py-3 rounded-full border border-zinc-800 z-20 shadow-xl">
+              {/* No mobile: Menor e mais perto da base */}
+              <div className="absolute bottom-4 lg:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 lg:gap-4 bg-zinc-900/80 backdrop-blur-md px-4 py-2 lg:px-6 lg:py-3 rounded-full border border-zinc-800 z-20 shadow-xl">
                 <Button 
                   variant="outline" 
                   size="icon" 
                   onClick={toggleMic}
-                  className={`rounded-full w-12 h-12 border-0 ${micOn ? 'bg-zinc-800 text-white hover:bg-zinc-700' : 'bg-red-500/20 text-red-500 hover:bg-red-500/30'}`}
+                  className={`rounded-full w-10 h-10 lg:w-12 lg:h-12 border-0 ${micOn ? 'bg-zinc-800 text-white hover:bg-zinc-700' : 'bg-red-500/20 text-red-500 hover:bg-red-500/30'}`}
                 >
-                  {micOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+                  {micOn ? <Mic className="w-4 h-4 lg:w-5 lg:h-5" /> : <MicOff className="w-4 h-4 lg:w-5 lg:h-5" />}
                 </Button>
                 
                 <Button 
                   variant="outline" 
                   size="icon" 
                   onClick={toggleCam}
-                  className={`rounded-full w-12 h-12 border-0 ${camOn ? 'bg-zinc-800 text-white hover:bg-zinc-700' : 'bg-red-500/20 text-red-500 hover:bg-red-500/30'}`}
+                  className={`rounded-full w-10 h-10 lg:w-12 lg:h-12 border-0 ${camOn ? 'bg-zinc-800 text-white hover:bg-zinc-700' : 'bg-red-500/20 text-red-500 hover:bg-red-500/30'}`}
                 >
-                  {camOn ? <VideoIcon className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+                  {camOn ? <VideoIcon className="w-4 h-4 lg:w-5 lg:h-5" /> : <VideoOff className="w-4 h-4 lg:w-5 lg:h-5" />}
                 </Button>
 
-                <div className="w-px h-8 bg-zinc-700 mx-2" />
+                <div className="w-px h-6 lg:h-8 bg-zinc-700 mx-1 lg:mx-2" />
 
                 <Button 
                   variant="destructive" 
                   onClick={handleEncerrar}
-                  className="rounded-full px-6 h-12 font-bold gap-2 bg-red-600 hover:bg-red-700 shadow-lg shadow-red-900/20"
+                  className="rounded-full px-4 lg:px-6 h-10 lg:h-12 text-sm lg:text-base font-bold gap-2 bg-red-600 hover:bg-red-700 shadow-lg shadow-red-900/20"
                 >
-                  <PhoneOff className="w-5 h-5" /> Encerrar
+                  <PhoneOff className="w-4 h-4 lg:w-5 lg:h-5" /> <span className="hidden sm:inline">Encerrar</span>
                 </Button>
               </div>
             </>
           )}
         </div>
 
-        {/* LADO DIREITO: PRONTUÁRIO ELETRÓNICO (PEP) */}
-        <div className="w-full lg:w-[500px] xl:w-[600px] h-full bg-secondary/30 flex flex-col border-l border-border">
-          <Tabs defaultValue="pep" className="flex flex-col h-full">
-            <div className="px-6 pt-4 pb-2 bg-card border-b border-border">
+        {/* LADO DIREITO/BAIXO: PRONTUÁRIO (PEP) */}
+        {/* No mobile ele ocupa o resto da tela com scroll */}
+        <div className="flex-1 lg:flex-none lg:w-[500px] xl:w-[600px] bg-secondary/30 flex flex-col border-t lg:border-t-0 lg:border-l border-border overflow-hidden">
+          <Tabs defaultValue="pep" className="flex flex-col h-full overflow-hidden">
+            <div className="px-4 lg:px-6 pt-2 lg:pt-4 pb-2 bg-card border-b border-border shrink-0">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="pep">Evolução Clínica</TabsTrigger>
-                <TabsTrigger value="documentos">Receitas & Atestados</TabsTrigger>
+                <TabsTrigger value="pep" className="text-xs lg:text-sm">Evolução</TabsTrigger>
+                <TabsTrigger value="documentos" className="text-xs lg:text-sm">Documentos</TabsTrigger>
               </TabsList>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4 lg:p-6">
               <TabsContent value="pep" className="m-0 h-full">
                 <PEPPanel agendamento={agendamento} />
               </TabsContent>

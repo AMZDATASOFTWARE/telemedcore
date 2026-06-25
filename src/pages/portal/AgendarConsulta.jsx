@@ -47,7 +47,7 @@ export default function AgendarConsulta({ medico, paciente, onBack }) {
     loadOcupados();
   }, [selectedDate, medico.id]);
 
-  async function handlePagar() {
+async function handlePagar() {
     if (!selectedSlot) return;
     setPaying(true);
     try {
@@ -57,6 +57,30 @@ export default function AgendarConsulta({ medico, paciente, onBack }) {
         second: 0,
       });
       const fim = inicio.clone().add(30, 'minutes');
+
+      // 🔥 MODO TESTE (BYPASS STRIPE): Injeta direto no banco de dados
+      const novoAgendamento = await base44.entities.Agendamento.create({
+        id_medico: medico.id,
+        id_paciente: paciente.id,
+        data_hora_inicio: inicio.toISOString(), // Data perfeita gerada pelo calendário
+        data_hora_fim: fim.toISOString(),
+        valor_consulta: Number(valorConsulta),
+        estado: 1, // 1 = Confirmado (Isto é o que liberta o botão de entrar na sala!)
+        link_videocall: "" // O frontend resolve a URL sozinho
+      });
+
+      alert("🎉 Consulta injetada com sucesso no Modo de Teste!");
+      
+      // Redireciona o paciente direto para a aba de "Minhas Consultas"
+      window.location.href = "/portal-paciente?tab=consultas";
+      
+    } catch (e) {
+      console.error(e);
+      alert("Falha ao salvar no banco:\n" + e.message);
+    } finally {
+      setPaying(false);
+    }
+  }
 
       // Chama a função do servidor enviando os dados
       const res = await base44.functions.invoke('checkoutConsulta', {

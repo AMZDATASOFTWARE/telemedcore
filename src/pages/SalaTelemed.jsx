@@ -1,179 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
-import { ROLES } from '@/lib/rbac';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Clock, Video, ShieldCheck } from 'lucide-react';
-import PEPPanel from '@/components/telemed/PEPPanel';
-import GeradorDocumentos from '@/components/telemed/GeradorDocumentos';
-
-export default function SalaTelemed({ telemedUser }) {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  
-  const [agendamento, setAgendamento] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [chamadaIniciada, setChamadaIniciada] = useState(false);
-  const [gerandoToken, setGerandoToken] = useState(false);
-  const [secureRoomUrl, setSecureRoomUrl] = useState('');
-
-  const isPaciente = telemedUser?.role === ROLES.PACIENTE;
-
-  useEffect(() => {
-    async function loadAgendamento() {
-      try {
-        const agends = await base44.entities.Agendamento.filter({ id });
-        if (agends.length > 0) {
-          setAgendamento(agends[0]);
-        } else {
-          toast({ title: "Erro", description: "Agendamento não encontrado.", variant: "destructive" });
-        }
-      } catch (error) {
-        console.error("Erro ao carregar sala:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadAgendamento();
-  }, [id]);
-
-  // 🔥 O MOTOR DE SEGURANÇA: Ninguém entra sem autorização do servidor
+// 🔥 MODO DETETIVE ATIVADO
   async function handleEntrarNaChamada() {
     setGerandoToken(true);
     try {
-      // Pede permissão ao servidor Base44
-      const res = await base44.functions.invoke('gerarTokenSala', { id_agendamento: id });
+      console.log("A pedir autorização ao servidor para a sala:", id);
       
-      if (res.data?.error) {
-        // Se o servidor bloquear, mostramos um erro destrutivo e não ligamos o vídeo!
-        toast({ title: "Acesso Bloqueado", description: res.data.error, variant: "destructive" });
+      // Invoca o backend
+      const res = await base44.functions.invoke('gerarTokenSala', { id_agendamento: id });
+      console.log("Resposta bruta do servidor:", res);
+
+      // Deteta erros de comunicação com a Cloud do Base44 (ex: Função não existe)
+      if (res.error) {
+        alert("O servidor Base44 rejeitou a chamada (A função foi enviada para o GitHub?):\n\n" + JSON.stringify(res.error));
         setGerandoToken(false);
         return;
       }
 
-      // Se o servidor aprovou, recebemos o Token e a URL criptografada
+      // Deteta erros processados pelo nosso código (ex: Tentativa de Invasão)
+      if (res.data?.error) {
+        toast({ title: "Acesso Bloqueado", description: res.data.error, variant: "destructive" });
+        alert("O nosso código Backend bloqueou o acesso:\n\n" + res.data.error);
+        setGerandoToken(false);
+        return;
+      }
+
+      // Sucesso Absoluto!
       if (res.data?.token && res.data?.url) {
         setSecureRoomUrl(res.data.url);
         setChamadaIniciada(true);
-        
-        // Atualiza o estado da consulta apenas se for o médico
         if (!isPaciente) {
           await base44.entities.Agendamento.update(id, { estado: 3 });
         }
+      } else {
+        alert("O servidor respondeu, mas não enviou o Token. Resposta:\n" + JSON.stringify(res.data));
       }
+      
     } catch (e) {
       console.error("Falha ao validar segurança:", e);
-      toast({ title: "Erro de Conexão", description: "Não foi possível estabelecer uma ligação segura.", variant: "destructive" });
+      alert("O Frontend não conseguiu contactar o servidor (Erro de Código):\n\n" + e.message);
     } finally {
       setGerandoToken(false);
     }
   }
-
-  async function handleEncerrarAtendimento() {
-    try {
-      if (!isPaciente) {
-        await base44.entities.Agendamento.update(id, { estado: 4 });
-        toast({ title: "Atendimento Concluído", description: "A consulta foi encerrada de forma segura." });
-        navigate('/agenda');
-      } else {
-        toast({ title: "Sala Encerrada", description: "Você saiu da videoconferência." });
-        navigate('/portal-paciente');
-      }
-    } catch (e) {
-      console.error(e);
-      navigate(isPaciente ? '/portal-paciente' : '/agenda');
-    }
-  }
-
-  if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
-  if (!agendamento) return <div className="p-8 text-center text-red-500">Sala inválida ou expirada.</div>;
-
-  return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden">
-      
-      <header className="h-14 bg-card border-b border-border flex items-center justify-between px-4 lg:px-6 shrink-0 z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-          <h1 className="font-bold text-sm lg:text-lg truncate flex items-center gap-2">
-            Sala de Telemedicina <ShieldCheck className="w-4 h-4 text-emerald-500" />
-          </h1>
-        </div>
-        <div className="flex items-center gap-2 lg:gap-4 text-xs lg:text-sm text-muted-foreground font-medium">
-          <span className="flex items-center gap-1 hidden md:flex">
-            <Clock className="w-4 h-4" /> {new Date(agendamento.data_hora_inicio).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-          </span>
-          <span className="bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20 text-xs font-bold">
-            {isPaciente ? "PAINEL DO PACIENTE" : "PAINEL DO MÉDICO"}
-          </span>
-        </div>
-      </header>
-
-      <div className="flex flex-1 flex-col lg:flex-row overflow-hidden">
-        
-        <div className="flex-1 min-h-[50vh] lg:min-h-0 bg-zinc-950 relative flex flex-col p-2 lg:p-4">
-          
-          {!chamadaIniciada ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
-              <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-800 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
-                <ShieldCheck className="w-10 h-10 text-emerald-500" />
-              </div>
-              <div className="px-4 space-y-2">
-                <h2 className="text-white text-xl font-bold">Ambiente Criptografado</h2>
-                <p className="text-zinc-400 text-sm max-w-md mx-auto">
-                  A sua chamada é protegida por criptografia de ponta-a-ponta (SRTP/DTLS) em conformidade com as normas da LGPD.
-                </p>
-              </div>
-              <Button 
-                onClick={handleEntrarNaChamada} 
-                disabled={gerandoToken}
-                size="lg" 
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-8 h-12 text-base font-bold shadow-xl gap-2"
-              >
-                {gerandoToken ? <><Loader2 className="w-5 h-5 animate-spin" /> Gerando Conexão Segura...</> : <><Video className="w-5 h-5" /> Iniciar Transmissão Segura</>}
-              </Button>
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col h-full relative">
-              <iframe
-                src={`${secureRoomUrl}#config.prejoinPageEnabled=false&config.disableDeepLinking=true`}
-                allow="camera; microphone; display-capture; autoplay"
-                className="w-full flex-1 bg-zinc-900 rounded-xl border border-zinc-800 shadow-2xl"
-                title="Chamada Protegida"
-              />
-              <div className="absolute top-3 left-3 z-30">
-                <Button 
-                  variant="destructive" 
-                  onClick={handleEncerrarAtendimento}
-                  className="h-9 rounded-lg px-4 text-xs font-bold shadow-md opacity-90 hover:opacity-100 bg-red-600 hover:bg-red-700"
-                >
-                  {isPaciente ? "Sair da Sala" : "Encerrar e Assinar"}
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {!isPaciente && (
-          <div className="flex-1 lg:flex-none lg:w-[480px] xl:w-[580px] bg-secondary/10 flex flex-col border-t lg:border-t-0 lg:border-l border-border overflow-hidden">
-            <Tabs defaultValue="pep" className="flex flex-col h-full overflow-hidden">
-              <div className="px-4 lg:px-6 pt-3 pb-2 bg-card border-b border-border shrink-0">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="pep" className="text-xs lg:text-sm font-semibold">Evolução Clínica (PEP)</TabsTrigger>
-                  <TabsTrigger value="documentos" className="text-xs lg:text-sm font-semibold">Receitas & Atestados</TabsTrigger>
-                </TabsList>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 lg:p-6">
-                <TabsContent value="pep" className="m-0 h-full"><PEPPanel agendamento={agendamento} /></TabsContent>
-                <TabsContent value="documentos" className="m-0 h-full"><GeradorDocumentos agendamento={agendamento} /></TabsContent>
-              </div>
-            </Tabs>
-          </div>
-        )}
-
-      </div>
-    </div>
-  );
-}

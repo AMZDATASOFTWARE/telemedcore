@@ -1,6 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
-// Substituímos pela 'jose', o padrão ouro da indústria que nunca falha no Deno
-import { SignJWT } from 'npm:jose@5.2.3';
 
 Deno.serve(async (req) => {
   const corsHeaders = {
@@ -16,6 +14,7 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     
+    // 1. Verificação de Autenticação
     if (!user) {
       return new Response(JSON.stringify({ error: 'Utilizador não autenticado.' }), { status: 401, headers: corsHeaders });
     }
@@ -27,33 +26,27 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'ID da consulta é obrigatório.' }), { status: 400, headers: corsHeaders });
     }
 
+    // 2. Busca a consulta no banco de dados para garantir que existe
     const consultas = await base44.asServiceRole.entities.Agendamento.filter({ id: id_agendamento });
     if (consultas.length === 0) {
       return new Response(JSON.stringify({ error: 'Consulta não encontrada ou expirada.' }), { status: 404, headers: corsHeaders });
     }
     const consulta = consultas[0];
 
+    // 3. O CORAÇÃO DA SEGURANÇA (Anti-Invasão)
+    // Se quem clicou no botão não for nem o médico nem o paciente da consulta, rua!
     if (consulta.id_medico !== user.id && consulta.id_paciente !== user.id) {
       return new Response(JSON.stringify({ error: 'Acesso negado por violação de privacidade.' }), { status: 403, headers: corsHeaders });
     }
 
-    // Geração do Token usando a biblioteca JOSE (Blindada)
-    const secret = Deno.env.get('JWT_SECRET') || 'telemedcore_chave_secreta_criptografia_2026';
-    const secretKey = new TextEncoder().encode(secret);
-
-    const secureToken = await new SignJWT({ 
-      room: id_agendamento,
-      context: { role: user.id === consulta.id_medico ? 'medico' : 'paciente' }
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setIssuer('telemedcore-auth')
-      .setSubject(user.id)
-      .setExpirationTime('1h') // Expira implacavelmente em 1 hora
-      .sign(secretKey);
+    // 4. Geração de URL Segura usando a API Nativa (Sem dependências externas = Zero Erros 503)
+    // Cria um código criptográfico de 32 caracteres impossível de adivinhar
+    const secureToken = crypto.randomUUID().replace(/-/g, '');
     
-    const secureRoomUrl = `https://meet.jit.si/telemedcore-secure-${id_agendamento}-${secureToken.substring(secureToken.length - 10)}`;
+    // Constrói a sala blindada
+    const secureRoomUrl = `https://meet.jit.si/telemedcore-secure-${id_agendamento}-${secureToken}`;
 
+    // Devolve a chave de acesso ao Frontend
     return new Response(JSON.stringify({ token: secureToken, url: secureRoomUrl }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }

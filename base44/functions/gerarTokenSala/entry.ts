@@ -14,9 +14,7 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     
-    // 1. Verificação de Autenticação
     if (!user) {
-      // Usamos status 200 com a chave "error" para o Frontend mostrar o alerta bonitinho
       return new Response(JSON.stringify({ error: 'Utilizador não autenticado.' }), { status: 200, headers: corsHeaders });
     }
 
@@ -27,30 +25,36 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'ID da consulta é obrigatório.' }), { status: 200, headers: corsHeaders });
     }
 
-    // 🔥 A CORREÇÃO: Descobre qual é o "ID de Perfil (UsuarioTelemed)" ligado a este login
     const perfis = await base44.asServiceRole.entities.UsuarioTelemed.filter({ user_id: user.id });
     if (!perfis || perfis.length === 0) {
       return new Response(JSON.stringify({ error: 'Perfil médico ou de paciente não encontrado.' }), { status: 200, headers: corsHeaders });
     }
-    const meuPerfilId = perfis[0].id; // Este é o ID que está gravado na consulta!
+    const meuPerfilId = perfis[0].id;
 
-    // Busca a consulta no banco de dados
     const consultas = await base44.asServiceRole.entities.Agendamento.filter({ id: id_agendamento });
     if (consultas.length === 0) {
-      return new Response(JSON.stringify({ error: 'Consulta não encontrada ou expirada.' }), { status: 200, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: 'Consulta não encontrada.' }), { status: 200, headers: corsHeaders });
     }
     const consulta = consultas[0];
 
-    // O CORAÇÃO DA SEGURANÇA: Agora compara banana com banana! (Perfil com Perfil)
     if (consulta.id_medico !== meuPerfilId && consulta.id_paciente !== meuPerfilId) {
-      return new Response(JSON.stringify({ error: 'Acesso negado por violação de privacidade (LGPD). Esta não é a sua consulta.' }), { status: 200, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: 'Acesso negado por violação de privacidade.' }), { status: 200, headers: corsHeaders });
     }
 
-    // Geração de URL Segura 
-    const secureToken = crypto.randomUUID().replace(/-/g, '');
-    const secureRoomUrl = `https://meet.jit.si/telemedcore-secure-${id_agendamento}-${secureToken}`;
+    // 🔥 PROBLEMA 1 RESOLVIDO (HASH DETERMINÍSTICO): 
+    // Misturamos o ID da consulta com um "Sal" secreto.
+    // Assim, o Médico e o Paciente vão receber EXATAMENTE a mesma URL criptografada!
+    const secretText = id_agendamento + "telemedcore_secreto_2026_super_seguro";
+    const data = new TextEncoder().encode(secretText);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    // Transformamos o hash em texto e cortamos os primeiros 20 caracteres
+    const secureToken = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 20);
 
-    // Devolve a chave de acesso com sucesso
+    // 🔥 PROBLEMA 2 RESOLVIDO (LIMITE DE 5 MINUTOS):
+    // Apontamos a URL para o servidor open source do Freifunk (Alemanha) que não corta iframes.
+    const secureRoomUrl = `https://meet.ffmuc.net/telemedcore-${secureToken}`;
+
     return new Response(JSON.stringify({ token: secureToken, url: secureRoomUrl }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
